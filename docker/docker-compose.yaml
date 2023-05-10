@@ -1,0 +1,56 @@
+name: iucom
+
+x-env: &env
+  env_file:
+    - ../.env
+
+x-common: &common
+  restart: always
+  logging:
+    options:
+      max-size: "10m"
+      max-file: "5"
+
+services:
+  api:
+    image: smthngslv/iucom:latest
+    entrypoint: gunicorn --config ./src/iucom/gunicorn.conf.py iucom.api.application:application
+    environment:
+      - IUCOM_DATABASE_URL=mongodb://iucom:iucom@mongodb
+    ports:
+      - "80:8000"
+    <<: *common
+    <<: *env
+
+  moodle-sync:
+    image: smthngslv/iucom:latest
+    entrypoint: iucom-moodle-sync
+    environment:
+      - IUCOM_DATABASE_URL=mongodb://iucom:iucom@mongodb
+    <<: *common
+    <<: *env
+
+  telegram-sync:
+    image: smthngslv/iucom:latest
+    entrypoint: iucom-telegram-sync
+    environment:
+      - IUCOM_DATABASE_URL=mongodb://iucom:iucom@mongodb
+    volumes:
+      - ../sessions:/app/sessions
+    <<: *common
+    <<: *env
+
+  mongodb:
+    image: mongo:6
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: iucom
+      MONGO_INITDB_ROOT_PASSWORD: iucom
+    volumes:
+      - mongodb:/data/db
+    ports:
+      - "27017:27017"
+    <<: *common
+    <<: *env
+
+volumes:
+  mongodb:
