@@ -9,7 +9,7 @@ from pymongo import ASCENDING, IndexModel
 from iucom.common.data.storages.mongodb import MongoDBStorage
 from iucom.common.domains.chats.entities import ChatEntity
 from iucom.common.domains.chats.enums import ChatStatus
-from iucom.common.domains.chats.errors import ChatsModifiedError, ChatsNotFoundError
+from iucom.common.domains.chats.errors import ChatsError, ChatsModifiedError, ChatsNotFoundError
 from iucom.common.utils import AsyncLazyObject
 
 __all__ = ("ChatsRepository",)
@@ -28,8 +28,14 @@ class ChatsRepository(AsyncLazyObject):
             ]
         )
 
-    async def get(self, id_: UUID) -> ChatEntity | None:
-        entity = await self.__collection.find_one({"id": str(id_)})
+    async def get(self, *, id_: UUID | None = None, telegram_entity: int | None = None) -> ChatEntity | None:
+        if (id_ is None) == (telegram_entity is None):
+            message = "You should provide id or telegram_entity."
+            raise ChatsError(message)
+
+        entity = await self.__collection.find_one(
+            {"id": str(id_)} if id_ is not None else {"telegram_entity": telegram_entity}  # type: ignore[dict-item]
+        )
 
         if entity is None:
             return None
@@ -55,7 +61,7 @@ class ChatsRepository(AsyncLazyObject):
 
     @asynccontextmanager
     async def update(self, id_: UUID) -> AsyncIterator[ChatEntity]:
-        old_entity = await self.get(id_)
+        old_entity = await self.get(id_=id_)
 
         if old_entity is None:
             message = f"Cannot find a chat with id '{id_}'."

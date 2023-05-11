@@ -1,13 +1,23 @@
+import hashlib
 from logging import getLogger
+from uuid import UUID, uuid4
 
 from iucom.common.domains.chats.entities import ChatEntity
 from iucom.common.domains.chats.enums import ChatStatus, ChatType
+from iucom.common.domains.chats.errors import ChatsNotFoundError
 from iucom.common.domains.chats.interactors import ChatsInteractor
 from iucom.common.domains.cources.enums import CourseType
 from iucom.common.domains.cources.errors import CoursesNotFoundError
 from iucom.common.domains.cources.interactors import CoursesInteractor
+from iucom.common.domains.statistics.entities import MessageEntity
+from iucom.common.domains.statistics.interactors import StatisticsInteractor
 from iucom.sync.data.repositories.telegram import TelegramRepository
-from iucom.sync.domains.telegram.entities import CreateTelegramEntity, TelegramEntity, UpdateTelegramEntity
+from iucom.sync.domains.telegram.entities import (
+    CreateTelegramEntity,
+    TelegramEntity,
+    TelegramMessageEntity,
+    UpdateTelegramEntity,
+)
 from iucom.sync.domains.telegram.enums import SlowMode
 
 __all__ = ("TelegramInteractor",)
@@ -19,11 +29,16 @@ class TelegramInteractor:
         telegram_repository: TelegramRepository,
         chats_interactor: ChatsInteractor,
         courses_interactor: CoursesInteractor,
+        statistics_interactor: StatisticsInteractor,
     ) -> None:
         self.__telegram_repository = telegram_repository
         self.__chats_interactor = chats_interactor
         self.__courses_interactor = courses_interactor
+        self.__statistics_interactor = statistics_interactor
         self.__logger = getLogger(f"iucom.{self.__class__.__name__}")
+
+    def setup_on_message_callback(self) -> None:
+        self.__telegram_repository.add_on_message_handler(self.__on_message)
 
     async def sync(self, *, exclude_synced: bool = False) -> None:  # noqa: PLR0912, PLR0915
         self.__logger.info(f"Syncing... Exclude synced objects: {exclude_synced}.")
@@ -234,5 +249,22 @@ class TelegramInteractor:
 
         return telegram_entity
 
-    async def __delete(self, id_: int) -> None:
-        pass
+    async def __on_message(self, message: TelegramMessageEntity) -> None:
+        try:
+            chat = await self.__chats_interactor.get(telegram_entity=message.chat)
+
+        except ChatsNotFoundError:
+            return
+
+        await self.__statistics_interactor.create(
+            MessageEntity(
+                # If we need to be able to link real message and the message in db,
+                # then we need to use hash. But for now, use just random ids.
+                id=uuid4(),
+                chat=chat.id,
+                # To be able to determine most active users, etc., we need to robust id.
+                user=UUID(bytes=hashlib.md5(str(message.user).encode()).digest()),  # noqa: S324
+                body=message.body,
+                created_at=message.created_at,
+            )
+        )

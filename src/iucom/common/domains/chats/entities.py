@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
-from pydantic import AnyUrl, Field
+from pydantic import AnyUrl, Field, validator
 from pydantic.dataclasses import dataclass
 
 from iucom.common.domains.chats.enums import ChatStatus, ChatType, SlowMode
@@ -22,3 +22,7 @@ class ChatEntity:
     telegram_invite_link: AnyUrl | None = Field(default=None)
     id: UUID = Field(default_factory=uuid4)  # noqa: A003
     updated: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+
+    @validator("updated", always=True)
+    def __validate_updated_at(cls, value: datetime) -> datetime:
+        return value.astimezone(tz=timezone.utc)

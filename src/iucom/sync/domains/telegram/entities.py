@@ -1,9 +1,11 @@
-from pydantic import AnyUrl, Field
+from datetime import datetime, timezone
+
+from pydantic import AnyUrl, Field, validator
 from pydantic.dataclasses import dataclass
 
 from iucom.sync.domains.telegram.enums import SlowMode
 
-__all__ = ("UpdateTelegramEntity", "CreateTelegramEntity", "TelegramEntity")
+__all__ = ("UpdateTelegramEntity", "CreateTelegramEntity", "TelegramEntity", "TelegramMessageEntity")
 
 
 @dataclass
@@ -31,3 +33,16 @@ class TelegramEntity:
     is_broadcast: bool = Field()
     all_reactions: bool = Field()
     slow_mode: SlowMode = Field()
+
+
+@dataclass
+class TelegramMessageEntity:
+    id: int = Field()  # noqa: A003
+    chat: int = Field()
+    user: int = Field()
+    body: str = Field()
+    created_at: datetime = Field()
+
+    @validator("created_at", always=True)
+    def __validate_updated_at(cls, value: datetime) -> datetime:
+        return value.astimezone(tz=timezone.utc)

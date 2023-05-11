@@ -1,5 +1,7 @@
 from contextlib import suppress
+from typing import Awaitable, Callable
 
+from telethon import events
 from telethon.errors import ChannelPrivateError, ChatNotModifiedError, FloodWaitError
 from telethon.tl.functions.channels import (
     CreateChannelRequest,
@@ -19,12 +21,19 @@ from telethon.tl.types import (
     ChatReactionsSome,
     DialogFilter,
     DialogFilterDefault,
+    PeerChannel,
+    PeerUser,
     ReactionEmoji,
 )
 
 from iucom.common.data.storages.mongodb import MongoDBStorage
 from iucom.sync.data.storages.telegram import TelegramStorage
-from iucom.sync.domains.telegram.entities import CreateTelegramEntity, TelegramEntity, UpdateTelegramEntity
+from iucom.sync.domains.telegram.entities import (
+    CreateTelegramEntity,
+    TelegramEntity,
+    TelegramMessageEntity,
+    UpdateTelegramEntity,
+)
 from iucom.sync.domains.telegram.enums import SlowMode
 
 __all__ = ("TelegramRepository",)
@@ -52,63 +61,21 @@ class TelegramRepository:
         self.__electives_folder_title = electives_folder_title
         self.__other_folder_title = other_folder_title
 
-    async def update_core_folder(self, ids: list[int]) -> None:
-        await self.__update_folder(self.__core_folder_title, ids)
+    def add_on_message_handler(self, handler: Callable[[TelegramMessageEntity], Awaitable[None]]) -> None:
+        @self.__telegram_storage.client.on(events.NewMessage(incoming=True))
+        async def _wrapper(event: events.NewMessage.Event) -> None:
+            if not isinstance(event.message.from_id, PeerUser) or not isinstance(event.message.peer_id, PeerChannel):
+                return
 
-    async def update_electives_folder(self, ids: list[int]) -> None:
-        await self.__update_folder(self.__electives_folder_title, ids)
-
-    async def update_other_folder(self, ids: list[int]) -> None:
-        await self.__update_folder(self.__other_folder_title, ids)
-
-    async def __update_folder(self, folder_title: str, entity_ids: list[int]) -> None:
-        ids = {1, 2}
-        folder_id = None
-
-        # Find existing folder.
-        for folder in await self.__telegram_storage.client(GetDialogFiltersRequest()):
-            # Skip default.
-            if isinstance(folder, DialogFilterDefault):
-                continue
-
-            # If folder already exists.
-            if folder.title == folder_title:
-                folder_id = folder.id
-                break
-
-            ids.add(folder.id)
-
-        # Folder does not exist, need to find proper id first.
-        if folder_id is None:
-            # If there is any available id, then use it.
-            for id_ in range(2, max(ids)):
-                if id_ not in ids:
-                    folder_id = id_
-                    break
-
-            # If no available, then just use next one.
-            if folder_id is None:
-                folder_id = max(ids) + 1
-
-        # Clearing.
-        # TODO: Deleting folder throws INPUT_METHOD_INVALID_472471681_289215.
-        if len(entity_ids) == 0:
-            me = await self.__telegram_storage.client.get_me(input_peer=True)
-            entity_ids = [me.user_id]
-
-        # Update / Create folder.
-        await self.__telegram_storage.client(
-            UpdateDialogFilterRequest(
-                folder_id,
-                DialogFilter(
-                    folder_id,
-                    folder_title,
-                    pinned_peers=[],
-                    include_peers=[await self.__telegram_storage.client.get_input_entity(id_) for id_ in entity_ids],
-                    exclude_peers=[],
-                ),
+            await handler(
+                TelegramMessageEntity(
+                    id=event.message.id,
+                    chat=event.message.peer_id.channel_id,
+                    user=event.message.from_id.user_id,
+                    body=event.message.message,
+                    created_at=event.message.date,
+                )
             )
-        )
 
     async def get(self, id_: int) -> TelegramEntity | None:
         try:
@@ -116,7 +83,7 @@ class TelegramRepository:
                 GetFullChannelRequest(await self.__telegram_storage.client.get_input_entity(id_))
             )
 
-        except ChannelPrivateError:
+        except (ChannelPrivateError, ValueError):
             return None
 
         slow_mode = result.full_chat.slowmode_seconds
@@ -204,7 +171,7 @@ class TelegramRepository:
             await self.__collection.delete_many({"id": id_})
 
         # Channel already deleted.
-        except ChannelPrivateError:
+        except (ChannelPrivateError, ValueError):
             # Delete from orphans, if present.
             await self.__collection.delete_many({"id": id_})
 
@@ -219,6 +186,64 @@ class TelegramRepository:
         async for entity in self.__collection.find({}):
             await self.delete(entity["id"], robust=False)
 
+    async def update_core_folder(self, ids: list[int]) -> None:
+        await self.__update_folder(self.__core_folder_title, ids)
+
+    async def update_electives_folder(self, ids: list[int]) -> None:
+        await self.__update_folder(self.__electives_folder_title, ids)
+
+    async def update_other_folder(self, ids: list[int]) -> None:
+        await self.__update_folder(self.__other_folder_title, ids)
+
     async def shutdown(self) -> None:
         await self.__telegram_storage.shutdown()
         await self.__mongodb_storage.shutdown()
+
+    async def __update_folder(self, folder_title: str, entity_ids: list[int]) -> None:
+        ids = {1, 2}
+        folder_id = None
+
+        # Find existing folder.
+        for folder in await self.__telegram_storage.client(GetDialogFiltersRequest()):
+            # Skip default.
+            if isinstance(folder, DialogFilterDefault):
+                continue
+
+            # If folder already exists.
+            if folder.title == folder_title:
+                folder_id = folder.id
+                break
+
+            ids.add(folder.id)
+
+        # Folder does not exist, need to find proper id first.
+        if folder_id is None:
+            # If there is any available id, then use it.
+            for id_ in range(2, max(ids)):
+                if id_ not in ids:
+                    folder_id = id_
+                    break
+
+            # If no available, then just use next one.
+            if folder_id is None:
+                folder_id = max(ids) + 1
+
+        # Clearing.
+        # TODO: Deleting folder throws INPUT_METHOD_INVALID_472471681_289215.
+        if len(entity_ids) == 0:
+            me = await self.__telegram_storage.client.get_me(input_peer=True)
+            entity_ids = [me.user_id]
+
+        # Update / Create folder.
+        await self.__telegram_storage.client(
+            UpdateDialogFilterRequest(
+                folder_id,
+                DialogFilter(
+                    folder_id,
+                    folder_title,
+                    pinned_peers=[],
+                    include_peers=[await self.__telegram_storage.client.get_input_entity(id_) for id_ in entity_ids],
+                    exclude_peers=[],
+                ),
+            )
+        )

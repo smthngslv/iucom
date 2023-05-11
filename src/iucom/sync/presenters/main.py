@@ -4,9 +4,11 @@ from datetime import datetime, timezone
 
 from iucom.common.data.repositories.chats import ChatsRepository
 from iucom.common.data.repositories.cources import CoursesMongoDBRepository, CoursesMoodleRepository
+from iucom.common.data.repositories.statistics import StatisticsRepository
 from iucom.common.data.storages.mongodb import MongoDBStorage
 from iucom.common.domains.chats.interactors import ChatsInteractor
 from iucom.common.domains.cources.interactors import CoursesInteractor
+from iucom.common.domains.statistics.interactors import StatisticsInteractor
 from iucom.common.settings import Settings
 from iucom.common.utils import entrypoint
 from iucom.sync.data.repositories.telegram import TelegramRepository
@@ -47,7 +49,11 @@ async def telegram() -> None:
         ),
         ChatsInteractor(await ChatsRepository(mongodb_storage)),
         CoursesInteractor(await CoursesMongoDBRepository(mongodb_storage)),
+        StatisticsInteractor(await StatisticsRepository(mongodb_storage)),
     )
+
+    # Setup callback on messages.
+    interactor.setup_on_message_callback()
 
     try:
         last_sync = datetime.now(tz=timezone.utc)

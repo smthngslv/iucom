@@ -16,11 +16,11 @@ class ChatsInteractor:
     def __init__(self, repository: ChatsRepository) -> None:
         self.__repository = repository
 
-    async def get(self, id_: UUID) -> ChatEntity:
-        entity = await self.__repository.get(id_)
+    async def get(self, *, id_: UUID | None = None, telegram_entity: int | None = None) -> ChatEntity:
+        entity = await self.__repository.get(id_=id_, telegram_entity=telegram_entity)
 
         if entity is None:
-            message = f"Chat with id '{id_}' not found."
+            message = f"Chat with id '{id_ if id_ is not None else telegram_entity}' not found."
             raise ChatsNotFoundError(message)
 
         return entity
