@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     TELEGRAM_API_HASH: str | None = Field(default=None)
     TELEGRAM_SESSION: Path = Field(default=Path("./sessions/main"))
     TELEGRAM_SYNC_PERIOD: int = Field(default=60)
-    TELEGRAM_FULL_SYNC_PERIOD: int = Field(default=300)
+    TELEGRAM_FULL_SYNC_PERIOD: int = Field(default=1800)
     TELEGRAM_CORE_FOLDER: str = Field(default="Core")
     TELEGRAM_ELECTIVES_FOLDER: str = Field(default="Electives")
     TELEGRAM_OTHER_FOLDER: str = Field(default="Other")

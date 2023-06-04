@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 from logging import getLogger
 from uuid import UUID, uuid4
@@ -197,6 +198,10 @@ class TelegramInteractor:
             self.__logger.info(f"Created: {telegram_entity}")
             return telegram_entity
 
+        # Avoid flood.
+        await asyncio.sleep(5)
+
+        # Prepare update.
         update = UpdateTelegramEntity(id=telegram_entity.id)
 
         # Validate title.
