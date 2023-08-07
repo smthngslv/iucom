@@ -29,10 +29,10 @@ from telethon.tl.types import (
 from iucom.common.data.storages.mongodb import MongoDBStorage
 from iucom.sync.data.storages.telegram import TelegramStorage
 from iucom.sync.domains.telegram.entities import (
-    CreateTelegramEntity,
+    TelegramCreateEntity,
     TelegramEntity,
     TelegramMessageEntity,
-    UpdateTelegramEntity,
+    TelegramUpdateEntity,
 )
 from iucom.sync.domains.telegram.enums import SlowMode
 
@@ -100,7 +100,7 @@ class TelegramRepository:
             slow_mode=slow_mode,
         )
 
-    async def create(self, entity: CreateTelegramEntity) -> TelegramEntity:
+    async def create(self, entity: TelegramCreateEntity) -> TelegramEntity:
         # Create in Telegram.
         result = await self.__telegram_storage.client(
             CreateChannelRequest(
@@ -144,7 +144,7 @@ class TelegramRepository:
             slow_mode=SlowMode.DISABLED,
         )
 
-    async def update(self, entity: UpdateTelegramEntity) -> None:
+    async def update(self, entity: TelegramUpdateEntity) -> None:
         peer = await self.__telegram_storage.client.get_input_entity(entity.id)
 
         with suppress(ChatNotModifiedError):

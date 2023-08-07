@@ -7,9 +7,9 @@ from fastapi import APIRouter, Body, File, Header, HTTPException, Path, Query, s
 from starlette.responses import StreamingResponse
 
 from iucom.api.application import mongodb_storage
-from iucom.api.endpoints.chats.schemas import Chat, ChatCreateRequest, Chats
+from iucom.api.endpoints.chats.schemas import Chat, ChatCreateRequest, Chats, ChatUpdateRequest
 from iucom.common.data.repositories.chats import ChatsRepository
-from iucom.common.domains.chats.entities import ChatEntity
+from iucom.common.domains.chats.entities import ChatEntity, ChatUpdateEntity
 from iucom.common.domains.chats.enums import ChatType, SlowMode
 from iucom.common.domains.chats.interactors import ChatsInteractor
 
@@ -68,6 +68,19 @@ async def create(request: ChatCreateRequest = Body()) -> Chat:
         description=request.description.strip(),
     )
     await interactor.create(chat)
+    return Chat.from_entity(chat)
+
+
+@router.patch("/{id:uuid}", response_model=Chat, description="Update an existing chat.")
+async def update(id_: UUID = Path(alias="id"), request: ChatUpdateRequest = Body()) -> Chat:
+    chat_update = ChatUpdateEntity(
+        id=id_,
+        title=request.title.strip() if request.title is not None else None,
+        slow_mode=getattr(SlowMode, request.slow_mode.name) if request.slow_mode is not None else None,
+        all_reactions=request.all_reactions,
+        description=request.description.strip() if request.description is not None else None,
+    )
+    chat = await interactor.update(chat_update)
     return Chat.from_entity(chat)
 
 

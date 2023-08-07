@@ -5,11 +5,11 @@ from pydantic.dataclasses import dataclass
 
 from iucom.sync.domains.telegram.enums import SlowMode
 
-__all__ = ("UpdateTelegramEntity", "CreateTelegramEntity", "TelegramEntity", "TelegramMessageEntity")
+__all__ = ("TelegramUpdateEntity", "TelegramCreateEntity", "TelegramEntity", "TelegramMessageEntity")
 
 
 @dataclass
-class UpdateTelegramEntity:
+class TelegramUpdateEntity:
     id: int = Field()  # noqa: A003
     title: str | None = Field(default=None)
     description: str | None = Field(default=None)
@@ -18,7 +18,7 @@ class UpdateTelegramEntity:
 
 
 @dataclass
-class CreateTelegramEntity:
+class TelegramCreateEntity:
     title: str = Field()
     description: str = Field(default="")
     is_broadcast: bool = Field(default=False)

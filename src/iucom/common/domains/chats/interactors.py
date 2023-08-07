@@ -5,7 +5,7 @@ from typing import AsyncContextManager, AsyncIterator
 from uuid import UUID
 
 from iucom.common.data.repositories.chats import ChatsRepository
-from iucom.common.domains.chats.entities import ChatEntity
+from iucom.common.domains.chats.entities import ChatEntity, ChatUpdateEntity
 from iucom.common.domains.chats.enums import ChatStatus, ChatType, SlowMode
 from iucom.common.domains.chats.errors import ChatsCannotModifyError, ChatsInvalidError, ChatsNotFoundError
 
@@ -54,10 +54,19 @@ class ChatsInteractor:
             entity.status = ChatStatus.DELETING
             entity.updated = datetime.now(tz=timezone.utc)
 
-    async def update(self, new_entity: ChatEntity) -> None:
+    async def update(self, new_entity: ChatUpdateEntity) -> ChatEntity:
         async with self.__update(self.__repository.update(new_entity.id)) as old_entity:
-            for field in dataclasses.fields(ChatEntity):
-                setattr(old_entity, field.name, getattr(new_entity, field.name))
+            for field in dataclasses.fields(ChatUpdateEntity):
+                target = getattr(new_entity, field.name)
+
+                if target is not None:
+                    setattr(old_entity, field.name, target)
+
+            # Indicate, that we have updated it. Just in case.
+            old_entity.status = ChatStatus.UPDATING
+            old_entity.updated = datetime.now(tz=timezone.utc)
+
+        return old_entity
 
     async def update_by_filter(
         self, *, exclude_synced: bool = False, course: str | None = None

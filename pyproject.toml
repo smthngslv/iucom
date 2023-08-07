@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "iucom"
-version = "1.0.0"
+version = "1.1.0"
 packages = [{ include = "iucom", from ="src" }]
 description = "Backend application for managing telegram chats for Innopolis University."
 authors = ["Ivan Izmailov <smthngslv@optic.xyz>"]
