@@ -6,7 +6,7 @@ from pydantic.dataclasses import dataclass
 
 from iucom.common.domains.chats.enums import ChatStatus, ChatType, SlowMode
 
-__all__ = ("ChatEntity",)
+__all__ = ("ChatEntity", "ChatUpdateEntity")
 
 
 @dataclass
@@ -26,3 +26,12 @@ class ChatEntity:
     @validator("updated", always=True)
     def __validate_updated_at(cls, value: datetime) -> datetime:
         return value.astimezone(tz=timezone.utc)
+
+
+@dataclass
+class ChatUpdateEntity:
+    id: UUID = Field()  # noqa: A003
+    title: str | None = Field(default=None)
+    description: str | None = Field(default=None)
+    slow_mode: SlowMode | None = Field(default=None)
+    all_reactions: bool | None = Field(default=None)

@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from iucom.common.domains.chats.entities import ChatEntity
 from iucom.common.domains.chats.enums import ChatStatus
 
-__all__ = ("Chat", "Chats", "ChatCreateRequest", "SlowMode")
+__all__ = ("Chat", "Chats", "ChatCreateRequest", "SlowMode", "ChatUpdateRequest")
 
 T = TypeVar("T", bound="Chat")
 
@@ -62,3 +62,10 @@ class ChatCreateRequest(BaseModel):
     slow_mode: SlowMode = Field(default=SlowMode.DISABLED)
     all_reactions: bool = Field(default=False)
     description: str = Field(default="")
+
+
+class ChatUpdateRequest(BaseModel):
+    title: str | None = Field(default=None)
+    slow_mode: SlowMode | None = Field(default=None)
+    all_reactions: bool | None = Field(default=None)
+    description: str | None = Field(default=None)

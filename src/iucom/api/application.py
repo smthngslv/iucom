@@ -1,3 +1,5 @@
+import importlib.metadata
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
@@ -8,7 +10,7 @@ from iucom.common.settings import Settings
 
 application = FastAPI(
     title="IUCom API",
-    version="1.0.0",
+    version=importlib.metadata.version("iucom"),
     default_response_class=ORJSONResponse,
     contact={"name": "Ivan Izmailov", "url": "https://t.me/smthngslv", "email": "smthngslv@optic.xyz"},
 )
@@ -34,6 +36,9 @@ async def on_startup() -> None:
 async def on_shutdown() -> None:
     await mongodb_storage.shutdown()
 
+
+# Enable exceptions.
+import iucom.api.error_handlers  # noqa: F401, E402
 
 # Include views.
 from iucom.api.endpoints import router  # noqa: E402

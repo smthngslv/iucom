@@ -14,10 +14,10 @@ from iucom.common.domains.statistics.entities import MessageEntity
 from iucom.common.domains.statistics.interactors import StatisticsInteractor
 from iucom.sync.data.repositories.telegram import TelegramRepository
 from iucom.sync.domains.telegram.entities import (
-    CreateTelegramEntity,
+    TelegramCreateEntity,
     TelegramEntity,
     TelegramMessageEntity,
-    UpdateTelegramEntity,
+    TelegramUpdateEntity,
 )
 from iucom.sync.domains.telegram.enums import SlowMode
 
@@ -202,7 +202,7 @@ class TelegramInteractor:
         await asyncio.sleep(5)
 
         # Prepare update.
-        update = UpdateTelegramEntity(id=telegram_entity.id)
+        update = TelegramUpdateEntity(id=telegram_entity.id)
 
         # Validate title.
         target_title = self.__get_title(chat_entity)
@@ -241,7 +241,7 @@ class TelegramInteractor:
 
     async def __create(self, entity: ChatEntity) -> TelegramEntity:
         telegram_entity = await self.__telegram_repository.create(
-            CreateTelegramEntity(
+            TelegramCreateEntity(
                 title=self.__get_title(entity),
                 description=entity.description,
                 is_broadcast=entity.type == ChatType.CHANNEL,
